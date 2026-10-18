@@ -1,0 +1,18 @@
+# 运行时产物
+work/
+*.log
+
+# 截图
+shots/
+*.png
+!docs/images/*.png
+
+# 临时文件
+*.tmp
+*.bak
+Thumbs.db
+desktop.ini
+
+# 编辑器
+.vscode/
+.idea/

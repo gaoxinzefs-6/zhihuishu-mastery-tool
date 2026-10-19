@@ -11,6 +11,34 @@
 
 ---
 
+## 🤖 给 Agent / 自动化调用（新增）
+
+本仓库现在是一个**可被机器调用的工具**，不只能人肉敲：
+
+```powershell
+# 机器可读输出：单行 JSON + 明确的退出码
+powershell -ExecutionPolicy Bypass -File .\run.ps1 -Action status -Json
+# {"ok":true,"pid":13064,"window":"智慧树 ...","state":"mastery"}
+
+powershell -ExecutionPolicy Bypass -File .\run.ps1 -Action next -Json
+# {"ok":true,"point":"顾恺之——“春蚕吐丝”","questions":[{"index":1,"type":"single","stem":"...","options":[{"key":"A","text":"..."}]}]}
+
+powershell -ExecutionPolicy Bypass -File .\run.ps1 -Action submit -Answers "B|T|ACE|D|A" -Json
+# {"ok":true,"point":"...","score":100,"correct":5,"total":5}
+```
+
+| 文档 | 面向谁 | 内容 |
+|---|---|---|
+| [AGENTS.md](AGENTS.md) | AI Agent / harness | CLI 契约、JSON 结构、退出码、伪代码循环 |
+| [docs/SOP.md](docs/SOP.md) | 人 + Agent | 标准作业流程、答题规则、故障处理矩阵 |
+| [skills/zhihuishu-mastery/SKILL.md](skills/zhihuishu-mastery/SKILL.md) | 支持 Skill 的 Agent | 可直接加载的技能描述 |
+
+退出码速查：`0` 成功 / `2` 不在掌握度页 / `3` 无灰色知识点 / `4` 打开失败 / `5` 提交失败。
+
+> 工具是**半自动**的：`next` 负责开题和读题，**答案仍需你或你的模型给出**——平台每次进入都会重新随机出题，无法内置题库。
+
+---
+
 ## ✨ 它做了什么
 
 - 自动切换到浏览器里的「智慧树」标签页；
@@ -80,18 +108,24 @@ powershell -ExecutionPolicy Bypass -File .\run.ps1 -Action submit -Answers "B|B|
 
 ```
 zhihuishu-mastery-tool/
-├─ run.ps1              # 命令行入口
+├─ run.ps1              # 命令行入口（人类 + Agent 共用）
+├─ AGENTS.md            # ★ 给 AI Agent 的接入说明与 CLI 契约
 ├─ src/
 │  ├─ Core.ps1          # UIA / 鼠标 / 取色 / 截图 等底层能力
-│  ├─ Mastery.ps1       # 掌握度页：扫描灰色方块、打开答题
-│  ├─ Exam.ps1          # 答题页：读题、选项、翻页、提交
+│  ├─ PageLib.ps1       # ★ 页面级能力：扫描知识点、开题、读题、提交
+│  ├─ Api.ps1           # ★ 机器可读 CLI：JSON 输出 + 退出码
+│  ├─ Mastery.ps1       # 掌握度页：扫描灰色方块、打开答题（交互式）
+│  ├─ Exam.ps1          # 答题页：读题、选项、翻页、提交（交互式）
 │  ├─ Pipeline.ps1      # 组合流程：判分、回退、记录已完成知识点
 │  ├─ EdgeTools.ps1     # 浏览器级操作：切标签、截图、找元素
 │  └─ UiTree.ps1        # 调试：打印 UIA 树，适配新页面时用
+├─ skills/
+│  └─ zhihuishu-mastery/SKILL.md   # ★ 可直接被 Skill 系统加载
 ├─ docs/
+│  ├─ SOP.md            # ★ 标准作业流程（人 + Agent）
 │  ├─ how-it-works.md   # 深入一点的原理解析
 │  └─ pitfalls.md       # 踩过的坑与规避方式
-├─ work/                # 运行时数据（截图、进度、完成清单），不入库
+├─ work/                # 运行时数据（进度、完成清单），不入库
 └─ README.md
 ```
 

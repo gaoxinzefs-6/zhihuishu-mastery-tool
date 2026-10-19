@@ -4,27 +4,31 @@
     智慧树 / 知到 知识点掌握度自动提升 - 命令行入口
 
 .DESCRIPTION
-    Windows 桌面自动化：通过 UI Automation 操作 Edge 浏览器中的
-    「智慧树 · 掌握度」页面，自动打开灰色知识点、抓取题目、填入答案并提交。
+    两种用法：
+      1) 人机协作：next 打开下一个灰色知识点并打印题目，submit 提交答案
+      2) 机器调用：所有动作都支持 -Json，输出单行 JSON，便于 harness / agent 解析
 
 .EXAMPLE
     powershell -ExecutionPolicy Bypass -File .\run.ps1 -Action status
 
 .EXAMPLE
-    powershell -ExecutionPolicy Bypass -File .\run.ps1 -Action next
+    powershell -ExecutionPolicy Bypass -File .\run.ps1 -Action next -Json
 
 .EXAMPLE
-    powershell -ExecutionPolicy Bypass -File .\run.ps1 -Action submit -Answers "B|B|A|B|B"
+    powershell -ExecutionPolicy Bypass -File .\run.ps1 -Action submit -Answers "B|B|A|B|B" -Json
 #>
 param(
-    [ValidateSet('status', 'next', 'submit', 'dump', 'open', 'node', 'help')]
+    [ValidateSet('status', 'scan', 'list', 'next', 'submit', 'back', 'dump', 'open', 'node', 'help')]
     [string]$Action = 'status',
 
     # 每题答案，用 | 分隔；判断题用 T/F；多选写成连写字母，例如 B|T|AC|D|A
     [string]$Answers = '',
 
     # -Action open 时指定知识点名称
-    [string]$Name = ''
+    [string]$Name = '',
+
+    # 输出单行 JSON（供 agent / 脚本解析）
+    [switch]$Json
 )
 
 $ErrorActionPreference = 'Stop'
@@ -44,17 +48,20 @@ function Invoke-Tool {
     & $sb @ArgSet
 }
 
+$apiActions = @('status', 'scan', 'list', 'next', 'submit', 'back')
+if ($apiActions -contains $Action) {
+    $a = @{ Action = $Action }
+    if ($Answers) { $a['Answers'] = $Answers }
+    if ($Json) { $a['Json'] = $true }
+    Invoke-Tool 'Api.ps1' $a
+    exit $LASTEXITCODE
+}
+
 switch ($Action) {
-    'status' { Invoke-Tool 'Exam.ps1' @{ Action = 'status' } }
     'dump' { Invoke-Tool 'Exam.ps1' @{ Action = 'dumpall' } }
-    'next' { Invoke-Tool 'Mastery.ps1' @{ Next = $true } }
     'open' {
         if (-not $Name) { throw '请用 -Name 指定知识点名称' }
         Invoke-Tool 'Mastery.ps1' @{ Name = $Name }
-    }
-    'submit' {
-        if (-not $Answers) { throw '请用 -Answers 传入答案，例如 "B|B|A|B|B"' }
-        Invoke-Tool 'Pipeline.ps1' @{ Action = 'push3'; Answers = $Answers }
     }
     'node' { Invoke-Tool 'UiTree.ps1' @{ Action = 'tree'; MaxDepth = 5; MaxNodes = 200 } }
     'help' { Get-Help $PSCommandPath -Detailed }

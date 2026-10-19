@@ -23,11 +23,36 @@ $script:EdgePid = (Get-Process msedge -ErrorAction SilentlyContinue | Where-Obje
 function Set-EdgePid([int]$pidValue) { $script:EdgePid = $pidValue }
 
 function Get-Win {
-    $root = [System.Windows.Automation.AutomationElement]::RootElement
-    $c = New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::ProcessIdProperty, $script:EdgePid)
-    $w = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $c)
-    if (-not $w) { throw "edge window not found" }
-    return $w
+    # 依次尝试：按 PID 找 → 刷新 PID 再找 → 按窗口类名兜底 → 重试
+    for ($attempt = 0; $attempt -lt 6; $attempt++) {
+        $root = [System.Windows.Automation.AutomationElement]::RootElement
+
+        if (-not $script:EdgePid) {
+            $proc = Get-Process msedge -ErrorAction SilentlyContinue |
+                Where-Object { $_.MainWindowTitle } | Select-Object -First 1
+            if ($proc) { $script:EdgePid = $proc.Id }
+        }
+
+        if ($script:EdgePid) {
+            $c = New-Object System.Windows.Automation.PropertyCondition(
+                [System.Windows.Automation.AutomationElement]::ProcessIdProperty, $script:EdgePid)
+            $w = $root.FindFirst([System.Windows.Automation.TreeScope]::Children, $c)
+            if ($w) { return $w }
+        }
+
+        # 兜底：遍历所有顶层窗口，找 Edge 的主窗口（Chrome_WidgetWin_1）
+        $all = $root.FindAll([System.Windows.Automation.TreeScope]::Children,
+            [System.Windows.Automation.Condition]::TrueCondition)
+        foreach ($e in $all) {
+            if ($e.Current.ClassName -eq 'Chrome_WidgetWin_1' -and $e.Current.Name -match 'Edge') {
+                $script:EdgePid = $e.Current.ProcessId
+                return $e
+            }
+        }
+
+        Start-Sleep -Milliseconds 800
+    }
+    throw "edge window not found：没找到 Edge 窗口。请确认 Edge 已启动、没有最小化到托盘，且窗口标题里带 'Edge'。"
 }
 
 function Get-Tabs {
@@ -212,6 +237,7 @@ function Wait-ScrollStable {
     }
     return $false
 }
+
 
 
 

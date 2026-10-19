@@ -28,7 +28,11 @@ param(
     [string]$Name = '',
 
     # 输出单行 JSON（供 agent / 脚本解析）
-    [switch]$Json
+    [switch]$Json,
+
+    # next 找哪一类知识点：missing 灰色 / weak 黄色 / any
+    [ValidateSet('missing', 'weak', 'any')]
+    [string]$Target = 'missing'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -53,6 +57,7 @@ if ($apiActions -contains $Action) {
     $a = @{ Action = $Action }
     if ($Answers) { $a['Answers'] = $Answers }
     if ($Json) { $a['Json'] = $true }
+    if ($Target) { $a['Target'] = $Target }
     Invoke-Tool 'Api.ps1' $a
     exit $LASTEXITCODE
 }
@@ -66,3 +71,5 @@ switch ($Action) {
     'node' { Invoke-Tool 'UiTree.ps1' @{ Action = 'tree'; MaxDepth = 5; MaxNodes = 200 } }
     'help' { Get-Help $PSCommandPath -Detailed }
 }
+
+

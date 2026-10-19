@@ -1,4 +1,4 @@
-# Api.ps1 — 面向 Agent 的机器可读 CLI
+﻿# Api.ps1 — 面向 Agent 的机器可读 CLI
 # 所有动作都可以加 -Json，输出单行 JSON，便于被 harness / 其他 agent 直接解析。
 # 退出码：0 成功；2 页面状态不对；3 没有灰色知识点；4 打开知识点失败；5 提交失败。
 
@@ -9,7 +9,10 @@ param(
 
     [string]$Answers = '',
 
-    [switch]$Json
+    [switch]$Json,
+
+    [ValidateSet('missing', 'weak', 'any')]
+    [string]$Target = 'missing'
 )
 
 $Work = if ($env:ZHIHUISHU_WORK) { $env:ZHIHUISHU_WORK } elseif ($PSScriptRoot) { Join-Path (Split-Path -Parent $PSScriptRoot) 'work' } else { Join-Path (Get-Location) 'work' }
@@ -60,7 +63,8 @@ try {
 
         'next' {
             Test-MasteryPage
-            $name = Get-NextMissingPoint -DoneFile (Join-Path $Work 'green.txt')
+            $statusFilter = if ($Target -eq 'any') { 'missing' } else { $Target }
+            $name = Get-NextMissingPoint -DoneFile (Join-Path $Work 'green.txt') -Status $statusFilter
             if (-not $name) { Out-Result @{ ok = $false; error = 'NO_MISSING_POINT' } 3 }
 
             $open = Open-PointByName $name
@@ -108,3 +112,6 @@ try {
 catch {
     Out-Result @{ ok = $false; error = $_.Exception.Message } 1
 }
+
+
+

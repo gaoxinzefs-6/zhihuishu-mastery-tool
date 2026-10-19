@@ -1,4 +1,4 @@
-# PageLib.ps1 — 页面级能力库（掌握度页 + 答题页）
+﻿# PageLib.ps1 — 页面级能力库（掌握度页 + 答题页）
 # 依赖 Core.ps1 提供的底层函数；本文件只定义函数，不执行动作。
 
 $GreenColor = @{ R = 140; G = 229; B = 162 }   # #8CE5A2 掌握较好
@@ -108,15 +108,18 @@ function Open-PointByName {
 }
 
 function Get-NextMissingPoint {
-    param([string]$DoneFile)
+    param([string]$DoneFile, [string]$Status = 'missing')
 
     $done = @()
     if ($DoneFile -and (Test-Path $DoneFile)) { $done = Get-Content $DoneFile -Encoding UTF8 }
 
-    for ($try = 0; $try -lt 6; $try++) {
+    Send-Text '^{HOME}'
+    Start-Sleep -Milliseconds 800
+
+    for ($try = 0; $try -lt 12; $try++) {
         [void](Wait-ScrollStable)
         $list = Get-KpList
-        $k = $list | Where-Object { $_.status -eq 'missing' -and ($done -notcontains $_.name) } | Select-Object -First 1
+        $k = $list | Where-Object { $_.status -eq $Status -and ($done -notcontains $_.name) } | Select-Object -First 1
         if ($k) { return $k.name }
         Scroll-Down 3
         Start-Sleep -Milliseconds 1200
@@ -264,3 +267,6 @@ function Send-Answers {
 
     return [pscustomobject]@{ score = $score; correct = $correct; total = $total }
 }
+
+
+
